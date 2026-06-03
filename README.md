@@ -111,11 +111,7 @@ Additional DX Cluster options are available under **Settings → DX Cluster**:
 
 ## Supported Radios
 
-| Series | Models |
-|---|---|
-| FLEX-6000 | FLEX-6300, FLEX-6400, FLEX-6500, FLEX-6600, FLEX-6700 |
-| FLEX-8000 | FLEX-8600 |
-| Aurora | AU-520, AU-1500 |
+FLEX-6000, FLEX-8000 and Aurora Series.
 
 Any radio running SmartSDR with the TCP API enabled should work.
 
