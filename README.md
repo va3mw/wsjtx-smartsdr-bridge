@@ -4,6 +4,8 @@
 
 SmartSpotter forwards decoded spots from WSJT-X and any DX Spider cluster node directly into FlexRadio SmartSDR's panadapter display via the SmartSDR TCP API. Compatible with **FLEX-6000**, **FLEX-8000**, and **Aurora** series radios. All modes supported.
 
+![SmartSpotter screenshot](smartspotter.png)
+
 ---
 
 ## Features
