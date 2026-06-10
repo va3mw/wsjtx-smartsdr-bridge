@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SmartSpotter  –  WSJT-X & DX Cluster Spot Bridge for FlexRadio
-Version 3.0  (2026-06-03)
+Version 3.1  (2026-06-10)
 
 Forwards decoded spots from WSJT-X and any DX Spider cluster to FlexRadio
 SmartSDR via the SmartSDR TCP API.  Compatible with FLEX-6000, FLEX-8000,
@@ -26,7 +26,7 @@ import signal
 
 # ── App metadata ───────────────────────────────────────────────────────────────
 APP_NAME    = "SmartSpotter"
-APP_VERSION = "3.0"
+APP_VERSION = "3.1"
 
 # ── Persistent config ──────────────────────────────────────────────────────────
 CONFIG_DIR  = Path.home() / ".wsjtx_flex_bridge"
@@ -492,8 +492,8 @@ class WSJTXListener(threading.Thread):
         self.on_status = on_status
         self.on_log    = on_log
         self._stop     = threading.Event()
-        self._dial_freq    = 0
-        self._current_mode = "FT8"
+        self._dial_freq    = {}   # instance_id → Hz (keeps slices isolated)
+        self._current_mode = {}   # instance_id → mode string
 
     def run(self):
         sock = None
@@ -559,14 +559,14 @@ class WSJTXListener(threading.Thread):
             return None
         _schema   = struct.unpack_from(">I", data, offset)[0]; offset += 4
         msg_type  = struct.unpack_from(">I", data, offset)[0]; offset += 4
-        _id, offset = parse_qstring(data, offset, buf_len)
+        inst_id, offset = parse_qstring(data, offset, buf_len)
 
         if msg_type == 1:  # Status
             dial_raw = struct.unpack_from(">Q", data, offset)[0]; offset += 8
             mode_str, offset = parse_qstring(data, offset, buf_len)
-            self._dial_freq = dial_raw
+            self._dial_freq[inst_id] = dial_raw
             if mode_str and mode_str != "~":
-                self._current_mode = mode_str.upper().strip()
+                self._current_mode[inst_id] = mode_str.upper().strip()
             return {"type": "status"}
 
         if msg_type == 2:  # Decode
@@ -578,7 +578,7 @@ class WSJTXListener(threading.Thread):
             mode_str, offset = parse_qstring(data, offset, buf_len)
             message, offset  = parse_qstring(data, offset, buf_len)
 
-            mode      = mode_str.upper().strip() if mode_str and mode_str != "~" else self._current_mode
+            mode      = mode_str.upper().strip() if mode_str and mode_str != "~" else self._current_mode.get(inst_id, "FT8")
             parts     = re.split(r"\s+", message.strip())
             callsign  = None
             msg_upper = message.upper()
@@ -593,7 +593,8 @@ class WSJTXListener(threading.Thread):
             if not callsign and parts:
                 callsign = parts[0] if re.match(r"^[A-Z0-9/]{3,15}$", parts[0]) else None
 
-            freq_mhz  = (self._dial_freq + df) / 1e6 if self._dial_freq > 0 else 0.0
+            _dial     = self._dial_freq.get(inst_id, 0)
+            freq_mhz  = (_dial + df) / 1e6 if _dial > 0 else 0.0
             my_call   = self.cfg.get("my_callsign", "").upper()
             min_snr   = self.cfg.get("min_snr", -35)
             filt      = self.cfg.get("filter_mode", "cq")
